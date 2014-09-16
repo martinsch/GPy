@@ -9,6 +9,26 @@ import cPickle
 import warnings
 import transformations
 
+#this is a workaround to instancemethod pickling, 
+#as described by Steven Bethard in
+#http://bytes.com/topic/python/answers/552476-why-cant-you-pickle-instancemethods
+import copy_reg
+def _pickle_method(method):
+    func_name = method.im_func.__name__
+    obj = method.im_self
+    cls = method.im_class
+    return _unpickle_method, (func_name, obj, cls)
+
+def _unpickle_method(func_name, obj, cls):
+    for cls in cls.mro():
+        try:
+            func = cls.__dict__[func_name]
+        except KeyError:
+            pass
+        else:
+            break
+    return func.__get__(obj, cls)
+
 class Parameterized(object):
     def __init__(self):
         """
@@ -33,12 +53,23 @@ class Parameterized(object):
 
     def pickle(self, filename, protocol=-1):
         with open(filename, 'wb') as f:
-            cPickle.dump(self, f, protocol=protocol)
-
+            try:
+                cPickle.dump(self, f, protocol=protocol)
+            except cPickle.PicklingError:
+                import types
+                copy_reg.pickle(types.MethodType, _pickle_method, _unpickle_method)
+                cPickle.dump(self, f, protocol=protocol)
+    def pickles(self,  protocol=cPickle.HIGHEST_PROTOCOL):
+        try:
+            return cPickle.dumps(self, protocol=protocol)
+        except cPickle.PicklingError:
+            import types
+            copy_reg.pickle(types.MethodType, _pickle_method, _unpickle_method)
+            return cPickle.dumps(self, protocol=protocol)
     def copy(self):
         """Returns a (deep) copy of the current model """
         return copy.deepcopy(self)
-
+    """
     def __getstate__(self):
         if self._has_get_set_state():
             return self.getstate()
@@ -50,7 +81,7 @@ class Parameterized(object):
             self._set_params(self._get_params()) # restore all values
             return
         self.__dict__ = state
-
+    """
     def _has_get_set_state(self):
         return 'getstate' in vars(self.__class__) and 'setstate' in vars(self.__class__)
 
