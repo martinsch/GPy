@@ -88,6 +88,7 @@ class EP(likelihood):
 
     def _compute_GP_variables(self):
         #Variables to be called from GP
+        self.tau_tilde[np.where(self.tau_tilde==0)] = 1
         mu_tilde = self.v_tilde/self.tau_tilde #When calling EP, this variable is used instead of Y in the GP model
         sigma_sum = 1./self.tau_ + 1./self.tau_tilde
         mu_diff_2 = (self.v_/self.tau_ - mu_tilde)**2
