@@ -307,7 +307,7 @@ class SparseGP(GPBase):
 
         return mu, var[:, None]
 
-    def predict(self, Xnew, X_variance_new=None, which_parts='all', full_cov=False, **likelihood_args):
+    def predict(self, Xnew, X_variance_new=None, which_parts='all', full_cov=False, with_raw=False, **likelihood_args):
         """
         Predict the function(s) at the new point(s) Xnew.
 
@@ -339,7 +339,12 @@ class SparseGP(GPBase):
         mu, var = self._raw_predict(Xnew, X_variance_new, full_cov=full_cov, which_parts=which_parts)
 
         # now push through likelihood
-        mean, var, _025pm, _975pm = self.likelihood.predictive_values(mu, var, full_cov, **likelihood_args)
+        if with_raw:
+            mean = mu
+            _025pm = None
+            _975pm = None
+        else:
+            mean, var, _025pm, _975pm = self.likelihood.predictive_values(mu, var, full_cov, **likelihood_args)
 
         return mean, var, _025pm, _975pm
 
